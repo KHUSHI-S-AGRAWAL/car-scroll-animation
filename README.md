@@ -1,120 +1,110 @@
-# 🏎️ ITZ FIZZ — Scroll-Driven Supercar Hero Animation
+# Scroll-Driven Hero Section Animation
 
-> **Assignment Submission**: Scroll-Driven Hero Section Animation  
+> **Assignment Submission**  
 > Inspired by the reference demo: [paraschaturvedi.github.io/car-scroll-animation](https://paraschaturvedi.github.io/car-scroll-animation)
 
 ---
 
-## 🌐 Live Links
+## 🔗 Links
 
-- **🚀 Live Webpage (GitHub Pages)**: [https://KHUSHI-S-AGRAWAL.github.io/car-scroll-animation](https://KHUSHI-S-AGRAWAL.github.io/car-scroll-animation)
+- **🚀 Live Webpage**: [https://KHUSHI-S-AGRAWAL.github.io/car-scroll-animation](https://KHUSHI-S-AGRAWAL.github.io/car-scroll-animation)
 - **📂 GitHub Repository**: [https://github.com/KHUSHI-S-AGRAWAL/car-scroll-animation](https://github.com/KHUSHI-S-AGRAWAL/car-scroll-animation)
 
 ---
 
-## 📋 Assignment Requirements & Compliance
+## 🛠️ Mandatory Tech Stack (Strictly as Specified)
 
-| # | Requirement | Implementation Details | Status |
-|---|---|---|:---:|
-| **1** | **Hero Section Layout** | Occupies initial screen (`100vh` above the fold). Displays bold letter-spaced headline `W E L C O M E   I T Z   F I Z Z` and 4 distinct impact metrics / statistics badges. | ✅ COMPLETED |
-| **2** | **Initial Load Animation** | Smooth staggered entrance for headline characters with 3D perspective slide-up and blur reduction (`power3.out`). Subtle sequential entrance delay for stat cards (`back.out(1.4)`). | ✅ COMPLETED |
-| **3** | **Scroll-Based Animation** | McLaren 720S translates across the asphalt runway strictly bound to scroll progress. GSAP `scrub: 1.2` interpolation provides fluid motion without jumpiness. Glowing neon trail follows behind tires. Headline characters dynamically ignite from muted outline to glowing neon green as the vehicle's headlights pass each coordinate. | ✅ COMPLETED |
-| **4** | **Motion & Performance** | Pure GPU-accelerated CSS `transform: translate3d` and `scale`. Letter bounding coordinates are pre-calculated and cached, updated only on resize to prevent layout reflows on scroll events. | ✅ COMPLETED |
-| **5** | **Tech Stack (Mandatory)** | **React 18**, **Tailwind CSS**, **GSAP (ScrollTrigger)**, **HTML5**, **CSS3**, **JavaScript (ESNext)**. | ✅ COMPLETED |
+- **HTML** (HTML5 Semantic Markup)
+- **CSS** (Modern CSS3 + Transitions)
+- **JavaScript** (ES6+ Interaction Logic)
+- **GSAP & ScrollTrigger** (for smooth scroll scrub and intro timeline animations)
+- **React.js** (Component Architecture & Lifecycle)
+- **Tailwind CSS** (Utility Styling)
 
----
-
-## ⚡ Additional Creative Features (Elevating the Experience)
-
-1. **Glassmorphic Cockpit Telemetry HUD**:
-   - Dynamic digital speedometer calculating instantaneous velocity (**0 to 212 MPH**) based on user scroll cadence.
-   - Dynamic 7-speed gear shift simulation (`N`, `1st` through `7th` gear).
-   - Live RPM tachometer bar with twin-turbo engine rev simulation.
-   - Track progress percentage counter (`0%` to `100%`).
-
-2. **Procedural Web Audio Engine**:
-   - Native browser Web Audio API synthesizer generating an electric hypercar motor hum.
-   - Frequency modulation dynamically scales pitch and throttle with user scroll speed.
-   - Zero external audio files required (100% reliable, zero latency).
-
-3. **Auto Cruise Mode**:
-   - One-click "Auto Drive" button enabling hands-free autoplay through the entire scroll runway at optimal cruising speed.
-
-4. **Finish Line Celebration**:
-   - High-performance particle celebration triggering upon completing the circuit.
+*No unrequested third-party libraries or external dependencies used.*
 
 ---
 
-## 🛠️ Tech Stack & Libraries
+## 📋 Functional Requirements Implementation
 
-- **Framework**: [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Animation**: [GSAP 3.12](https://greensock.com/gsap/) with [ScrollTrigger](https://greensock.com/scrolltrigger/)
-- **Styling**: [Tailwind CSS 3.4](https://tailwindcss.com/)
-- **Typography**: Orbitron, Space Grotesk, JetBrains Mono
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Particles**: Canvas-Confetti
-- **Audio**: Web Audio API (Native Oscillator & BiquadFilter Nodes)
+### 1. Hero Section Layout
+- Occupies the first screen (above the fold) via a pinned `100vh` track container.
+- Displays the bold letter-spaced headline:  
+  `W E L C O M E   I T Z   F I Z Z`
+- Shows 4 impact metrics / statistics around the runway:
+  - **58%** — Increase in pick up point use (`#def54f`)
+  - **23%** — Decreased in customer phone calls (`#6ac9ff`)
+  - **27%** — Increase in pick up point use (`#333333`)
+  - **40%** — Decreased in customer phone calls (`#fa7328`)
+
+### 2. Initial Load Animation
+- On initial page load:
+  - The headline letters appear smoothly via a staggered reveal (`gsap.timeline()` with `opacity: 0 -> 0.25`, vertical slide `y: 25 -> 0`, and `stagger: 0.035s`).
+  - The impact statistics boxes animate in one by one with a subtle sequential delay (`stagger: 0.15s`, `opacity: 0 -> 1`, `scale: 0.92 -> 1`, `power2.out`).
+  - Car slides smoothly into initial pole position.
+
+### 3. Scroll-Based Animation (Core Feature)
+- The hero section responds smoothly to page scroll over a pinned `250vh` track.
+- As the user scrolls:
+  - The McLaren 720S translates along the horizontal road from `x: 0` to `endX = roadWidth - carWidth`.
+  - Motion is tied directly to scroll progress (not time-based autoplay) using GSAP's `scrub: 1.2` interpolation for natural fluid easing.
+  - The green trail (`#45db7d`) dynamically fills the road behind the vehicle.
+  - As the car drives past each letter, the letter dynamically illuminates from dim white to bright neon green (`#45db7d`).
+
+### 4. Motion & Performance Guidelines
+- All animations use hardware-accelerated CSS `transform` properties (`translate`, `scale`).
+- Letter coordinates relative to the road are pre-computed on mount and recalculated only on window resize events, preventing layout thrashing and DOM reflows during the scroll event loop.
 
 ---
 
-## 📁 Project Architecture
+## 📁 Project Structure
 
 ```
 CarScroll/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml            # Automated GitHub Actions deployment pipeline
+│       └── deploy.yml        # Automated GitHub Pages deployment
 ├── public/
-│   └── car.png                   # High-res McLaren 720S top-down asset
+│   └── car.png               # McLaren 720S top-view graphic
 ├── src/
 │   ├── components/
-│   │   ├── Navbar.jsx            # Brand header, cruise control, audio toggle, repo link
-│   │   ├── HeroScrollSection.jsx # Pinned track, McLaren 720S, letter collisions, stat cards
-│   │   ├── TelemetryHUD.jsx      # Glassmorphic speedometer, gear indicator, RPM gauge
-│   │   ├── TechShowcase.jsx      # Technical breakdown & specification matrix
-│   │   └── Footer.jsx            # Attribution and links
-│   ├── utils/
-│   │   └── audio.js              # Synthesized Web Audio API hypercar engine
-│   ├── App.jsx                   # Application root & telemetry state manager
-│   ├── index.css                 # Custom neon glow, asphalt shaders, scrollbar
-│   └── main.jsx                  # React DOM mount point
-├── index.html                    # HTML5 shell with Google Font preconnects
-├── package.json                  # Scripts & dependencies
-├── tailwind.config.js            # Extended cyber theme & glow utilities
-└── vite.config.js                # Relative base configuration for GitHub Pages
+│   │   ├── Navbar.jsx        # Clean header with brand and repo link
+│   │   └── HeroSection.jsx   # Hero layout, GSAP ScrollTrigger & load animations
+│   ├── App.jsx               # React application root
+│   ├── index.css             # Tailwind CSS directives
+│   └── main.jsx              # React DOM entry point
+├── vanilla/
+│   └── index.html            # Standalone Vanilla HTML/CSS/JS + GSAP + Tailwind version
+├── car.png                   # Root asset for standalone version
+├── index.html                # App shell
+├── package.json              # Minimal dependencies: React, GSAP, Tailwind, Vite
+├── tailwind.config.js        # Standard Tailwind configuration
+└── vite.config.js            # Relative base path for GitHub Pages
 ```
 
 ---
 
-## 🚀 Local Development Setup
+## 🚀 How to Run Locally
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/KHUSHI-S-AGRAWAL/car-scroll-animation.git
-   cd car-scroll-animation
-   ```
+### React + Tailwind + GSAP:
+```bash
+npm install
+npm run dev
+```
+Open `http://localhost:3000`.
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+### Build for Production:
+```bash
+npm run build
+```
+Generates the optimized static distribution in `dist/`.
 
-3. **Start development server**:
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:3000` in your browser.
-
-4. **Build production bundle**:
-   ```bash
-   npm run build
-   ```
-   The static distribution files are exported to the `dist/` directory ready for any web host.
+### Standalone Vanilla Version:
+Simply open `vanilla/index.html` directly in any web browser without running any build commands.
 
 ---
 
-## 📄 License & Attribution
+## 📄 Submission Information
 
-- Built as part of frontend engineering evaluation.
-- Reference implementation: [paraschaturvedi/car-scroll-animation](https://paraschaturvedi.github.io/car-scroll-animation).
-- Developed by **Khushi S Agrawal**.
+- **Developer**: Khushi S Agrawal
+- **Email**: khushiagrawal2815@gmail.com
