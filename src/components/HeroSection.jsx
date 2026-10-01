@@ -10,175 +10,117 @@ const HEADLINE_LETTERS = [
   "I", "T", "Z", "F", "I", "Z", "Z"
 ];
 
-const STAT_BOXES = [
-  {
-    id: "box1",
-    num: "58%",
-    text: "Increase in pick up point use",
-    bg: "#def54f",
-    color: "#111111",
-    positionClasses: "top-[6%] md:top-[8%] right-[28%] md:right-[32%]",
-  },
-  {
-    id: "box2",
-    num: "23%",
-    text: "Decreased in customer phone calls",
-    bg: "#6ac9ff",
-    color: "#111111",
-    positionClasses: "bottom-[6%] md:bottom-[8%] right-[32%] md:right-[36%]",
-  },
-  {
-    id: "box3",
-    num: "27%",
-    text: "Increase in pick up point use",
-    bg: "#333333",
-    color: "#ffffff",
-    positionClasses: "top-[6%] md:top-[8%] right-[8%] md:right-[10%]",
-  },
-  {
-    id: "box4",
-    num: "40%",
-    text: "Decreased in customer phone calls",
-    bg: "#fa7328",
-    color: "#111111",
-    positionClasses: "bottom-[6%] md:bottom-[8%] right-[10%] md:right-[14%]",
-  }
-];
-
 export default function HeroSection() {
   const containerRef = useRef(null);
   const trackRef = useRef(null);
   const roadRef = useRef(null);
   const carRef = useRef(null);
   const trailRef = useRef(null);
-  const headlineRef = useRef(null);
+  const valueAddRef = useRef(null);
   const lettersRef = useRef([]);
-  const boxesRef = useRef([]);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const road = roadRef.current;
       const car = carRef.current;
       const trail = trailRef.current;
+      const valueAdd = valueAddRef.current;
       const letters = lettersRef.current.filter(Boolean);
-      const boxes = boxesRef.current.filter(Boolean);
 
-      if (!road || !car || !trail) return;
+      if (!car || !trail || !valueAdd) return;
 
-      // ----------------------------------------------------
-      // 1. INITIAL LOAD ANIMATION (Requirement 2)
-      // ----------------------------------------------------
-      const introTimeline = gsap.timeline();
+      const carWidth = 150;
 
-      // Headline appears smoothly (fade + slight movement / staggered reveal)
-      introTimeline.fromTo(
-        letters,
-        {
-          opacity: 0,
-          y: 25,
-          scale: 0.9,
-        },
-        {
-          opacity: 0.25, // Initial visible state before car passes
-          y: 0,
-          scale: 1,
-          duration: 0.7,
-          stagger: 0.035,
-          ease: "power2.out",
+      // Calculate travel bounds and letter positions
+      let endX = window.innerWidth - carWidth;
+      let valueRect = valueAdd.getBoundingClientRect();
+      let letterOffsets = letters.map((letter) => letter.offsetLeft);
+
+      const updateMetrics = () => {
+        endX = window.innerWidth - carWidth;
+        if (valueAdd) {
+          valueRect = valueAdd.getBoundingClientRect();
+          letterOffsets = letters.map((letter) => letter.offsetLeft);
         }
-      );
-
-      // Statistics animate in one by one with a subtle delay
-      introTimeline.fromTo(
-        boxes,
-        {
-          opacity: 0,
-          y: 30,
-          scale: 0.92,
-        },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.7,
-          stagger: 0.15,
-          ease: "power2.out",
-        },
-        "-=0.4"
-      );
-
-      // Car slides into initial starting position
-      introTimeline.fromTo(
-        car,
-        { x: -100, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" },
-        "-=0.6"
-      );
-
-      // ----------------------------------------------------
-      // 2. PRE-COMPUTE COORDINATES (Requirement 4: Performance)
-      // ----------------------------------------------------
-      let letterPositions = [];
-
-      const calculatePositions = () => {
-        if (!road) return;
-        const roadRect = road.getBoundingClientRect();
-        letterPositions = letters.map((letter) => {
-          const rect = letter.getBoundingClientRect();
-          return rect.left - roadRect.left + rect.width * 0.5;
-        });
       };
 
-      calculatePositions();
-      window.addEventListener("resize", calculatePositions);
+      window.addEventListener("resize", updateMetrics);
 
-      const getTravelDistance = () => {
-        const roadWidth = road.offsetWidth;
-        const carWidth = car.offsetWidth || 150;
-        return roadWidth - carWidth - 10;
-      };
+      // Set initial trail position behind the car rear
+      gsap.set(trail, { width: carWidth / 2 });
 
-      // ----------------------------------------------------
-      // 3. SCROLL-BASED ANIMATION (Requirement 3: Core Feature)
-      // ----------------------------------------------------
+      // 1. Car Scroll & Letter Reveal Animation (scrub tied directly to scroll)
       gsap.to(car, {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
           end: "bottom top",
-          scrub: 1.2, // Smooth interpolation and natural easing
+          scrub: true,
           pin: trackRef.current,
-          anticipatePin: 1,
-          onUpdate: () => {
-            const currentX = gsap.getProperty(car, "x") || 0;
-            const carWidth = car.offsetWidth || 150;
-            const carFrontX = currentX + carWidth * 0.85;
-            const carRearX = currentX + carWidth * 0.15;
-
-            // Update trail width behind car
-            gsap.set(trail, { width: Math.max(0, carRearX) });
-
-            // Dynamic Letter Reveal: illuminate as car drives past
-            letters.forEach((letter, i) => {
-              const letterX = letterPositions[i];
-              if (carFrontX >= letterX) {
-                letter.style.opacity = "1";
-                letter.style.color = "#45db7d";
-                letter.style.transform = "translateY(-2px)";
-              } else {
-                letter.style.opacity = "0.25";
-                letter.style.color = "#ffffff";
-                letter.style.transform = "translateY(0)";
-              }
-            });
-          },
         },
-        x: () => getTravelDistance(),
+        x: () => endX,
         ease: "none",
+        onUpdate: function () {
+          const currentX = gsap.getProperty(car, "x") || 0;
+          const carX = currentX + carWidth / 2;
+
+          // When scrolling forward, trail expands; when scrolling back, trail shrinks
+          gsap.set(trail, { width: carX });
+
+          // When car passes a letter -> visible; when car moves back past it -> invisible
+          letters.forEach((letter, i) => {
+            const letterX = valueRect.left + letterOffsets[i];
+            if (carX >= letterX) {
+              letter.style.opacity = "1";
+            } else {
+              letter.style.opacity = "0";
+            }
+          });
+        },
+      });
+
+      // 2. Stat Boxes: scrub in on scroll forward, scrub out on scroll backward
+      gsap.to("#box1", {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top+=400 top",
+          end: "top+=600 top",
+          scrub: true,
+        },
+        opacity: 1,
+      });
+
+      gsap.to("#box2", {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top+=600 top",
+          end: "top+=800 top",
+          scrub: true,
+        },
+        opacity: 1,
+      });
+
+      gsap.to("#box3", {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top+=800 top",
+          end: "top+=1000 top",
+          scrub: true,
+        },
+        opacity: 1,
+      });
+
+      gsap.to("#box4", {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top+=1000 top",
+          end: "top+=1200 top",
+          scrub: true,
+        },
+        opacity: 1,
       });
 
       return () => {
-        window.removeEventListener("resize", calculatePositions);
+        window.removeEventListener("resize", updateMetrics);
       };
     }, containerRef);
 
@@ -186,96 +128,128 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-[250vh] bg-[#121212]">
-      {/* Pinned Viewport Track */}
+    <div ref={containerRef} className="section relative w-full h-[250vh] bg-[#121212]">
+      {/* Sticky Viewport Track */}
       <div
         ref={trackRef}
-        className="sticky top-0 h-screen w-full flex items-center justify-center bg-[#d1d1d1] relative overflow-hidden"
+        className="track sticky top-0 h-screen w-full flex items-center justify-center bg-[#d1d1d1] relative overflow-hidden"
       >
-        {/* Road Track (100vw, 200px height matching reference) */}
+        {/* Road (100vw, 200px height) */}
         <div
           ref={roadRef}
           id="road"
-          className="w-full h-[200px] md:h-[220px] bg-[#1e1e1e] relative overflow-hidden flex items-center"
+          className="road w-full h-[200px] bg-[#1e1e1e] relative overflow-hidden flex items-center"
         >
-          {/* Dynamic Green Trail (#45db7d) */}
-          <div
-            ref={trailRef}
-            id="trail"
-            className="absolute top-0 left-0 h-full bg-[#45db7d] pointer-events-none z-[1]"
-            style={{ width: 0 }}
-          />
-
-          {/* Letter-Spaced Headline: W E L C O M E   I T Z   F I Z Z */}
-          <div
-            ref={headlineRef}
-            className="absolute left-[4%] md:left-[6%] flex items-center gap-1 sm:gap-2 md:gap-3 font-sans font-bold text-4xl sm:text-6xl md:text-8xl select-none z-[5] pointer-events-none tracking-wider"
-          >
-            {HEADLINE_LETTERS.map((char, index) => {
-              if (char === " ") {
-                return (
-                  <span
-                    key={index}
-                    ref={(el) => (lettersRef.current[index] = el)}
-                    className="inline-block w-4 sm:w-8 md:w-12"
-                  >
-                    &nbsp;
-                  </span>
-                );
-              }
-              return (
-                <span
-                  key={index}
-                  ref={(el) => (lettersRef.current[index] = el)}
-                  className="inline-block transition-opacity duration-200 text-white will-change-transform"
-                >
-                  {char}
-                </span>
-              );
-            })}
-          </div>
-
-          {/* Supercar Visual Element (McLaren 720S Top View) */}
+          {/* McLaren 720S */}
           <img
             ref={carRef}
             id="car"
             src="./car.png"
-            alt="McLaren 720S"
-            className="absolute top-0 left-0 h-[200px] md:h-[220px] w-auto object-contain z-10 will-change-transform pointer-events-none select-none"
+            alt="car"
+            className="car absolute top-0 left-0 h-[200px] w-auto z-10 pointer-events-none select-none"
             draggable={false}
           />
-        </div>
 
-        {/* Impact Metrics / Statistics (Requirement 1 & 2) */}
-        {STAT_BOXES.map((box, index) => (
+          {/* Green Trail (#45db7d) */}
           <div
-            key={box.id}
-            id={box.id}
-            ref={(el) => (boxesRef.current[index] = el)}
-            className={`absolute ${box.positionClasses} z-20 flex flex-col justify-center items-start gap-1 p-4 md:p-6 rounded-xl shadow-lg transition-transform duration-200 select-none will-change-transform`}
-            style={{
-              backgroundColor: box.bg,
-              color: box.color,
-            }}
-          >
-            <span className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight">
-              {box.num}
-            </span>
-            <span className="text-xs sm:text-sm font-medium leading-tight max-w-[140px] md:max-w-[160px]">
-              {box.text}
-            </span>
-          </div>
-        ))}
+            ref={trailRef}
+            id="trail"
+            className="trail absolute top-0 left-0 h-[200px] bg-[#45db7d] pointer-events-none z-[1]"
+            style={{ width: "75px" }}
+          />
 
-        {/* Scroll Instruction Indicator */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none z-20">
-          <p className="text-xs uppercase tracking-widest font-mono text-gray-700 font-bold mb-1">
-            Scroll Down To Drive
-          </p>
-          <div className="w-4 h-7 mx-auto rounded-full border-2 border-gray-700/60 flex justify-center pt-1">
-            <div className="w-1 h-2 bg-gray-800 rounded-full animate-bounce" />
+          {/* Headline Letters: WELCOME ITZFIZZ */}
+          <div
+            ref={valueAddRef}
+            id="valueText"
+            className="value-add absolute left-[5%] top-[15%] flex gap-[0.3rem] font-bold text-7xl sm:text-8xl md:text-[8rem] select-none z-[5] pointer-events-none"
+            style={{ lineHeight: 1 }}
+          >
+            {HEADLINE_LETTERS.map((char, index) => (
+              <span
+                key={index}
+                ref={(el) => (lettersRef.current[index] = el)}
+                className="value-letter text-[#111] inline-block transition-opacity duration-200"
+                style={{ opacity: 0 }}
+              >
+                {char === " " ? "\u00A0" : char}
+              </span>
+            ))}
           </div>
         </div>
+
+        {/* Box 1 (58% Yellow) */}
+        <div
+          id="box1"
+          className="text-box absolute top-[5%] right-[30%] z-20 flex flex-col justify-center items-start gap-[5px] p-[25px] md:p-[30px] rounded-[10px] select-none shadow-md"
+          style={{
+            backgroundColor: "#def54f",
+            color: "#111",
+            opacity: 0,
+          }}
+        >
+          <span className="num-box text-4xl sm:text-5xl md:text-[58px] font-semibold leading-none">
+            58%
+          </span>
+          <span className="text-sm md:text-[18px] font-medium leading-tight">
+            Increase in pick up point use
+          </span>
+        </div>
+
+        {/* Box 2 (23% Blue) */}
+        <div
+          id="box2"
+          className="text-box absolute bottom-[5%] right-[35%] z-20 flex flex-col justify-center items-start gap-[5px] p-[25px] md:p-[30px] rounded-[10px] select-none shadow-md"
+          style={{
+            backgroundColor: "#6ac9ff",
+            color: "#111",
+            opacity: 0,
+          }}
+        >
+          <span className="num-box text-4xl sm:text-5xl md:text-[58px] font-semibold leading-none">
+            23%
+          </span>
+          <span className="text-sm md:text-[18px] font-medium leading-tight">
+            Decreased in customer phone calls
+          </span>
+        </div>
+
+        {/* Box 3 (27% Dark) */}
+        <div
+          id="box3"
+          className="text-box absolute top-[5%] right-[10%] z-20 flex flex-col justify-center items-start gap-[5px] p-[25px] md:p-[30px] rounded-[10px] select-none shadow-md"
+          style={{
+            backgroundColor: "#333",
+            color: "#fff",
+            opacity: 0,
+          }}
+        >
+          <span className="num-box text-4xl sm:text-5xl md:text-[58px] font-semibold leading-none">
+            27%
+          </span>
+          <span className="text-sm md:text-[18px] font-medium leading-tight">
+            Increase in pick up point use
+          </span>
+        </div>
+
+        {/* Box 4 (40% Orange) */}
+        <div
+          id="box4"
+          className="text-box absolute bottom-[5%] right-[12.5%] z-20 flex flex-col justify-center items-start gap-[5px] p-[25px] md:p-[30px] rounded-[10px] select-none shadow-md"
+          style={{
+            backgroundColor: "#fa7328",
+            color: "#111",
+            opacity: 0,
+          }}
+        >
+          <span className="num-box text-4xl sm:text-5xl md:text-[58px] font-semibold leading-none">
+            40%
+          </span>
+          <span className="text-sm md:text-[18px] font-medium leading-tight">
+            Decreased in customer phone calls
+          </span>
+        </div>
+
       </div>
     </div>
   );
