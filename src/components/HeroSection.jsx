@@ -400,7 +400,7 @@ export default function HeroSection() {
               />
 
               <img
-                src="/car.png"
+                src={`${import.meta.env.BASE_URL}car.png`}
                 alt="McLaren 720S Supercar"
                 className="h-full w-auto object-contain filter drop-shadow-[0_12px_18px_rgba(0,0,0,0.7)] pointer-events-none select-none"
                 draggable={false}
