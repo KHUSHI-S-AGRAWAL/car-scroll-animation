@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from '@studio-freight/lenis';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -19,7 +20,6 @@ const STAT_CARDS = [
     bg: "#def54f",
     textColor: "#111111",
     glowColor: "rgba(222, 245, 79, 0.4)",
-    // Positioned safely on the left of the top row (desktop)
     position: "top-[3%] md:top-[6%] left-[4%] md:left-auto md:right-[38%] lg:right-[40%]",
   },
   {
@@ -30,7 +30,6 @@ const STAT_CARDS = [
     bg: "#1e222b",
     textColor: "#ffffff",
     glowColor: "rgba(168, 85, 247, 0.3)",
-    // Positioned safely on the right of the top row (desktop)
     position: "top-[3%] md:top-[6%] right-[4%] md:right-[4%] lg:right-[6%]",
   },
   {
@@ -41,7 +40,6 @@ const STAT_CARDS = [
     bg: "#6ac9ff",
     textColor: "#111111",
     glowColor: "rgba(106, 201, 255, 0.4)",
-    // Positioned safely on the left of the bottom row (desktop)
     position: "bottom-[3%] md:bottom-[6%] left-[4%] md:left-auto md:right-[38%] lg:right-[40%]",
   },
   {
@@ -52,7 +50,6 @@ const STAT_CARDS = [
     bg: "#fa7328",
     textColor: "#111111",
     glowColor: "rgba(250, 115, 40, 0.4)",
-    // Positioned safely on the right of the bottom row (desktop)
     position: "bottom-[3%] md:bottom-[6%] right-[4%] md:right-[4%] lg:right-[6%]",
   }
 ];
@@ -68,28 +65,84 @@ export default function HeroSection() {
 
   const [telemetry, setTelemetry] = useState({ speed: 0, progress: 0 });
   const [isAutoCruise, setIsAutoCruise] = useState(false);
+  const driveDirectionRef = useRef("down");
+  const lenisRef = useRef(null);
 
-  // Auto Cruise drive loop
+  // Initialize Ultra-Smooth Lenis Driver
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.4,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.5,
+    });
+
+    lenisRef.current = lenis;
+    lenis.on('scroll', ScrollTrigger.update);
+
+    const updateLenis = (time) => {
+      lenis.raf(time * 1000);
+    };
+
+    gsap.ticker.add(updateLenis);
+    gsap.ticker.lagSmoothing(0);
+
+    return () => {
+      lenis.destroy();
+      gsap.ticker.remove(updateLenis);
+    };
+  }, []);
+
+  // Bi-directional Auto Cruise Drive Loop
   useEffect(() => {
     if (isAutoCruise) {
       let animationFrameId;
-      const speed = 4;
-
-      const cruise = () => {
+      const cruiseStep = () => {
         const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-        if (window.scrollY < maxScroll - 5) {
-          window.scrollBy({ top: speed, behavior: 'instant' });
-          animationFrameId = requestAnimationFrame(cruise);
+        const currentScroll = window.scrollY;
+
+        if (driveDirectionRef.current === "down") {
+          if (currentScroll < maxScroll - 5) {
+            window.scrollBy(0, 8);
+            animationFrameId = requestAnimationFrame(cruiseStep);
+          } else {
+            setIsAutoCruise(false);
+          }
         } else {
-          setIsAutoCruise(false);
+          if (currentScroll > 5) {
+            window.scrollBy(0, -8);
+            animationFrameId = requestAnimationFrame(cruiseStep);
+          } else {
+            setIsAutoCruise(false);
+          }
         }
       };
 
-      animationFrameId = requestAnimationFrame(cruise);
+      animationFrameId = requestAnimationFrame(cruiseStep);
       return () => cancelAnimationFrame(animationFrameId);
     }
   }, [isAutoCruise]);
 
+  const toggleAutoDrive = () => {
+    if (isAutoCruise) {
+      setIsAutoCruise(false);
+      return;
+    }
+
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const currentScroll = window.scrollY;
+
+    if (currentScroll >= maxScroll - 30) {
+      driveDirectionRef.current = "up";
+    } else {
+      driveDirectionRef.current = "down";
+    }
+
+    setIsAutoCruise(true);
+  };
+
+  // GSAP ScrollTrigger Setup
   useEffect(() => {
     const ctx = gsap.context(() => {
       const car = carRef.current;
@@ -100,47 +153,45 @@ export default function HeroSection() {
 
       if (!car || !trail || !valueAdd || !road) return;
 
-      const carWidth = 160;
+      const carWidth = car.offsetWidth || 220;
+      const initialTrailWidth = carWidth * 0.25; // Spans 1/4th of car length at start
 
-      // Calculate travel bounds and letter positions
-      let endX = road.offsetWidth - carWidth - 20;
-      let valueRect = valueAdd.getBoundingClientRect();
+      let endX = road.offsetWidth - carWidth;
       let letterOffsets = letters.map((letter) => letter.offsetLeft);
 
       const updateMetrics = () => {
-        endX = road.offsetWidth - carWidth - 20;
+        endX = road.offsetWidth - carWidth;
         if (valueAdd) {
-          valueRect = valueAdd.getBoundingClientRect();
           letterOffsets = letters.map((letter) => letter.offsetLeft);
         }
+        ScrollTrigger.refresh();
       };
 
       window.addEventListener("resize", updateMetrics);
 
-      // Initial trail width behind the rear of the car
-      gsap.set(trail, { width: 75 });
+      gsap.set(trail, { width: initialTrailWidth });
 
-      // 1. CAR SCROLL & LETTER REVEAL ANIMATION
       let lastTime = Date.now();
       let lastX = 0;
 
+      // Car Driver Scroll Animation: One-scroll completion with snapping
       gsap.to(car, {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
           end: "bottom top",
-          scrub: 1.1,
+          scrub: 1.2,
           pin: trackRef.current,
           anticipatePin: 1,
+          snap: {
+            snapTo: [0, 1], // Automatically snaps to start or end in one smooth slide
+            duration: 0.9,
+            ease: "power2.inOut"
+          },
           onUpdate: (self) => {
             const currentX = gsap.getProperty(car, "x") || 0;
-            const carX = currentX + carWidth * 0.7; // Front hood coordinate for revealing letters
+            const carFrontX = currentX + carWidth * 0.72;
 
-            // Dynamic trail length (capped at car rear wheels)
-            const trailX = Math.max(75, currentX + carWidth * 0.45);
-            gsap.set(trail, { width: trailX });
-
-            // Calculate instantaneous velocity for speedometer HUD
             const now = Date.now();
             const dt = Math.max(1, now - lastTime);
             const dx = Math.abs(currentX - lastX);
@@ -149,24 +200,31 @@ export default function HeroSection() {
             lastTime = now;
             lastX = currentX;
 
-            // Letter Reveal: turns visible when car passes forward, turns invisible when car moves backward
+            let revealedTextRight = 0;
             letters.forEach((letter, i) => {
-              const letterX = valueRect.left + letterOffsets[i];
-              if (carX >= letterX) {
+              const letterX = valueAdd.offsetLeft + letterOffsets[i];
+              if (carFrontX >= letterX) {
                 letter.style.opacity = "1";
                 letter.style.transform = "translateY(-2px)";
+                revealedTextRight = Math.max(
+                  revealedTextRight,
+                  letterX + letter.offsetWidth
+                );
               } else {
                 letter.style.opacity = "0";
                 letter.style.transform = "translateY(0px)";
               }
             });
+
+            const trailX = Math.max(initialTrailWidth, currentX + carWidth * 0.35, revealedTextRight + 15);
+            gsap.set(trail, { width: trailX });
           },
         },
         x: () => endX,
         ease: "none",
       });
 
-      // 2. STAT BOXES: Scrub in smoothly on forward scroll, scrub out on backward scroll
+      // Stat Cards Scrubbing
       gsap.fromTo(
         "#box1",
         { opacity: 0, y: 35, scale: 0.92 },
@@ -176,8 +234,8 @@ export default function HeroSection() {
           scale: 1,
           scrollTrigger: {
             trigger: containerRef.current,
-            start: "top+=350 top",
-            end: "top+=580 top",
+            start: "top+=200 top",
+            end: "top+=400 top",
             scrub: true,
           },
         }
@@ -192,8 +250,8 @@ export default function HeroSection() {
           scale: 1,
           scrollTrigger: {
             trigger: containerRef.current,
-            start: "top+=580 top",
-            end: "top+=800 top",
+            start: "top+=400 top",
+            end: "top+=600 top",
             scrub: true,
           },
         }
@@ -208,8 +266,8 @@ export default function HeroSection() {
           scale: 1,
           scrollTrigger: {
             trigger: containerRef.current,
-            start: "top+=800 top",
-            end: "top+=1020 top",
+            start: "top+=600 top",
+            end: "top+=800 top",
             scrub: true,
           },
         }
@@ -224,8 +282,8 @@ export default function HeroSection() {
           scale: 1,
           scrollTrigger: {
             trigger: containerRef.current,
-            start: "top+=1020 top",
-            end: "top+=1250 top",
+            start: "top+=800 top",
+            end: "top+=1000 top",
             scrub: true,
           },
         }
@@ -240,9 +298,10 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <div ref={containerRef} className="section relative w-full h-[270vh] bg-[#101216]">
+    // Height reduced to 180vh so a single scroll completes the drive
+    <div ref={containerRef} className="section relative w-full h-[180vh] bg-[#101216]">
       
-      {/* Sleek Floating Top Telemetry & Controls Bar */}
+      {/* Telemetry Header */}
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
           <span className="text-lg md:text-xl font-black tracking-widest text-white uppercase font-mono drop-shadow">
@@ -254,7 +313,6 @@ export default function HeroSection() {
           </span>
         </div>
 
-        {/* Live Telemetry Pill & Auto-Cruise Button */}
         <div className="flex items-center gap-2.5 pointer-events-auto">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 font-mono text-xs text-white">
             <span className="text-gray-400">SPEED:</span>
@@ -265,7 +323,7 @@ export default function HeroSection() {
           </div>
 
           <button
-            onClick={() => setIsAutoCruise((prev) => !prev)}
+            onClick={toggleAutoDrive}
             className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition-all duration-300 border ${
               isAutoCruise
                 ? "bg-[#45db7d] text-black border-[#45db7d] shadow-[0_0_15px_rgba(69,219,125,0.6)]"
@@ -277,45 +335,40 @@ export default function HeroSection() {
         </div>
       </header>
 
-      {/* Sticky Viewport Track Container */}
+      {/* Track Container */}
       <div
         ref={trackRef}
         className="track sticky top-0 h-screen w-full flex items-center justify-center track-bg relative overflow-hidden select-none"
       >
-        
-        {/* Subtle Ambient Radial Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[75vw] h-[350px] bg-emerald-500/[0.07] blur-[120px] rounded-full pointer-events-none" />
 
-        {/* ================= ROAD RUNWAY ================= */}
+        {/* ROAD RUNWAY */}
         <div className="relative w-full overflow-hidden shadow-2xl">
-          
-          {/* Upper Racing Curb / Rumble Strip */}
           <div className="w-full h-2 curb-pattern opacity-90 shadow-sm" />
 
-          {/* Asphalt Road Surface */}
           <div
             ref={roadRef}
             id="road"
             className="road w-full h-[200px] md:h-[220px] asphalt-surface relative overflow-hidden flex items-center shadow-inner"
           >
             {/* Center Dashed Lane Divider */}
-            <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 border-b-2 border-dashed border-white/20 pointer-events-none" />
+            <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 border-b-2 border-dashed border-white/20 pointer-events-none z-0" />
 
-            {/* Glowing Neon Green Trail (#45db7d) */}
+            {/* Neon Green Trail */}
             <div
               ref={trailRef}
               id="trail"
               className="trail absolute top-0 left-0 h-full bg-[#45db7d] pointer-events-none z-[1] border-r-2 border-[#86efac] neon-trail-glow"
-              style={{ width: "75px" }}
+              style={{ width: "55px" }}
             />
 
-            {/* Letter-Spaced Headline: WELCOME ITZFIZZ (Properly Scaled & Fully Visible) */}
+            {/* HEADLINE TEXT: Strictly capped to calc(100% - 420px) to guarantee zero overlap with parked car */}
             <div
               ref={valueAddRef}
               id="valueText"
-              className="value-add absolute left-[4%] md:left-[6%] flex items-center gap-1 sm:gap-2 md:gap-2.5 font-sans font-black tracking-wider select-none z-[5] pointer-events-none"
+              className="value-add absolute left-[3%] sm:left-[4%] w-[52%] md:w-[56%] max-w-[calc(100%-420px)] flex items-center justify-between font-sans font-black select-none z-[2] pointer-events-none"
               style={{
-                fontSize: "clamp(2.1rem, 4.4vw, 4.2rem)",
+                fontSize: "clamp(1.4rem, 2.8vw, 3.2rem)",
                 lineHeight: 1,
               }}
             >
@@ -326,18 +379,17 @@ export default function HeroSection() {
                   className="value-letter text-[#111111] inline-block font-extrabold transition-transform duration-150 will-change-transform"
                   style={{ opacity: 0 }}
                 >
-                  {char === " " ? "\u00A0" : char}
+                  {char === " " ? "\u00A0\u00A0" : char}
                 </span>
               ))}
             </div>
 
-            {/* McLaren 720S Supercar with Headlight Cones */}
+            {/* McLaren 720S Supercar */}
             <div
               ref={carRef}
               id="car"
-              className="car absolute top-0 left-0 h-[200px] md:h-[220px] w-auto z-10 flex items-center pointer-events-none will-change-transform"
+              className="car absolute top-0 left-0 h-[200px] md:h-[220px] w-auto z-[20] flex items-center pointer-events-none will-change-transform"
             >
-              {/* Volumetric Headlight Light Beam Cone */}
               <div
                 className="absolute right-[-140px] top-1/2 -translate-y-1/2 w-[180px] h-[150px] pointer-events-none opacity-60"
                 style={{
@@ -347,9 +399,8 @@ export default function HeroSection() {
                 }}
               />
 
-              {/* McLaren Car High-Res Graphic */}
               <img
-                src="./car.png"
+                src="/car.png"
                 alt="McLaren 720S Supercar"
                 className="h-full w-auto object-contain filter drop-shadow-[0_12px_18px_rgba(0,0,0,0.7)] pointer-events-none select-none"
                 draggable={false}
@@ -358,16 +409,15 @@ export default function HeroSection() {
 
           </div>
 
-          {/* Lower Racing Curb / Rumble Strip */}
           <div className="w-full h-2 curb-pattern opacity-90 shadow-sm" />
         </div>
 
-        {/* ================= 4 IMPACT STAT CARDS (Zero Overlap Guaranteed) ================= */}
+        {/* 4 Impact Stat Cards */}
         {STAT_CARDS.map((card) => (
           <div
             key={card.id}
             id={card.id}
-            className={`text-box absolute ${card.position} z-20 flex flex-col justify-center items-start gap-1 p-4 md:p-5 rounded-2xl select-none transition-all duration-300 w-[160px] sm:w-[220px] md:w-[260px] lg:w-[280px] border border-black/10 hover:-translate-y-1.5 hover:scale-[1.02] cursor-pointer will-change-transform`}
+            className={`text-box absolute ${card.position} z-30 flex flex-col justify-center items-start gap-1 p-4 md:p-5 rounded-2xl select-none transition-all duration-300 w-[160px] sm:w-[220px] md:w-[260px] lg:w-[280px] border border-black/10 hover:-translate-y-1.5 hover:scale-[1.02] cursor-pointer will-change-transform`}
             style={{
               backgroundColor: card.bg,
               color: card.textColor,
@@ -375,19 +425,14 @@ export default function HeroSection() {
               opacity: 0,
             }}
           >
-            {/* Top Category Badge */}
-            <span
-              className="text-[9px] md:text-[10px] font-mono uppercase tracking-widest font-black opacity-75 px-1.5 py-0.5 rounded bg-black/10 leading-none"
-            >
+            <span className="text-[9px] md:text-[10px] font-mono uppercase tracking-widest font-black opacity-75 px-1.5 py-0.5 rounded bg-black/10 leading-none">
               {card.badge}
             </span>
 
-            {/* Percentage Number */}
             <span className="num-box text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-none mt-1">
               {card.num}
             </span>
 
-            {/* Description Text */}
             <span className="text-xs md:text-sm font-semibold leading-snug mt-0.5 opacity-90">
               {card.label}
             </span>
